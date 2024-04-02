@@ -5,9 +5,12 @@ CREATE TABLE IF NOT EXISTS rss_feeds (
                                          username TEXT NOT NULL,
                                          last_published_rss_entry_guid TEXT
 );
-CREATE TABLE IF NOT EXISTS PostedImages (
+CREATE TABLE IF NOT EXISTS posted_images (
                                             id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                            Posted_Image_URL TEXT NOT NULL,
-                                            Hashed_Posted_Image_URL TEXT NOT NULL
+                                            posted_image_url TEXT NOT NULL,
+                                            hashed_posted_image_url TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_hashed_posted_image_url ON PostedImages (Hashed_Posted_Image_URL);
+CREATE INDEX IF NOT EXISTS idx_hashed_posted_image_url ON posted_images (hashed_posted_image_url);
+CREATE TABLE IF NOT EXISTS config (
+                                                post_date_cut_off TEXT NOT NULL
+);

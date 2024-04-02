@@ -90,6 +90,20 @@ class Database:
         except sqlite3.IntegrityError:
             logger.info("No feeds found in the database")
 
+    def fetch_feed_urls(self, batch_size=50):
+        """Generator for paginated getting of feed urls from db."""
+        offset = 0
+        while True:
+            urls = self.query("SELECT feed_url FROM feeds LIMIT ? OFFSET ?", (batch_size, offset))
+
+            if not urls:
+                break  # If no urls are returned, break the loop
+
+            for url in urls:
+                yield url[0]  # Suggesting that url is a tuple with one element
+
+            offset += batch_size
+
     def delete_feed(self, feed_url: tuple) -> None:
         """Delete a feed from the database."""
         try:
@@ -100,7 +114,14 @@ class Database:
     def is_post_exists_in_db(self, hashed_posted_image_url: tuple) -> None:
         """Check if a post has been posted."""
         try:
-            self.query("SELECT Hashed_Posted_Image_URL \
-             FROM PostedImages WHERE Hashed_Posted_Image_URL = ?", hashed_posted_image_url)
+            self.query("SELECT hashed_posted_image_url \
+             FROM posted_images WHERE hashed_posted_image_url = ?", hashed_posted_image_url)
         except sqlite3.IntegrityError:
             logger.info("No posts found in the database")
+
+    def get_post_date_cut_off(self):
+        """Get the cut-off date for posts."""
+        try:
+            self.query("SELECT post_date_cut_off FROM config", fetch_one=True)
+        except sqlite3.IntegrityError:
+            logger.error("No cut-off date found in config.post_date_cut_off")
