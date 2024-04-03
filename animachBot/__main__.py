@@ -10,7 +10,7 @@ def main():
     db = Database(config.get("animachBot.database.path"))
     db.connect()
     parser = FeedParser(db)
-    for feed in parser.fetch_feeds():
+    for feed in parser.process_fetched_feeds():
         print(feed)  # Do something with the feed data
 
 

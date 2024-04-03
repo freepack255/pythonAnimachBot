@@ -124,6 +124,22 @@ class Database:
                        (hashed_posted_image_url,))
         return cursor.fetchone()[0] == 1
 
+    def get_last_post_id(self, feed_url):
+        """Get the last post ID from the database."""
+        try:
+            result = self.query("SELECT last_published_rss_entry_guid FROM rss_feeds "
+                                "WHERE url = ?", (feed_url,), fetch_one=True)
+            if result and result[0] is not None:
+                logger.info(f"Last published guid found in db rss_feeds table for the feed {feed_url}: {result[0]}")
+                return result[0]
+            else:
+                logger.error("No last published guid found in rss_feeds.last_published_rss_entry_guid"
+                             " for the feed {feed_url}".format(feed_url=feed_url))
+                return None
+        except sqlite3.IntegrityError as e:
+            logger.error(f"Database error when fetching last published guid: {e}")
+            return None
+
     def get_post_date_cut_off(self):
         """Get the cut-off date for posts."""
         try:
