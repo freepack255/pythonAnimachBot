@@ -4,7 +4,6 @@ anima4_bot:
     enabled_sources:
       - pixiv
       # - twitter # Twitter requires authentication due to API limitations from their side
-    check_after_date: 2023-01-01T00:00:00Z # ISO 8601 format with timezone
   database:
     filename: data/rss_feeds.db
     feeds_table_name: rss_feeds

@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-
+from datetime import datetime
 from animachBot.logger.logger import logger
 
 
@@ -48,13 +48,16 @@ class Database:
         if self.conn is None:
             self.conn = sqlite3.connect(str(self.db_path))
         with self.conn:
-            with self.conn.cursor() as cursor:
+            try:
+                cursor = self.conn.cursor()
                 cursor.execute(sql_script, args or ())
                 if sql_script.strip().lower().startswith("select"):
                     if fetch_one:
                         return cursor.fetchone()
                     else:
                         return cursor.fetchall()
+            finally:
+                cursor.close()
 
     def execute_sql_commands_from_file(self, filename: str):
         """Execute a series of SQL commands from a file."""
@@ -80,6 +83,7 @@ class Database:
         """Insert a new feed into the database."""
         try:
             self.query("INSERT INTO rss_feeds (url, source, username) VALUES (?, ?, ?)", (feed_url, source, username))
+            logger.info("New feed has been added to the database")
         except sqlite3.IntegrityError:
             logger.info("Feed already exists in the database")
 
@@ -87,6 +91,7 @@ class Database:
         """Get all feeds from the database."""
         try:
             self.query("SELECT url FROM rss_feeds")
+            logger.info("All feeds have been fetched from the database")
         except sqlite3.IntegrityError:
             logger.info("No feeds found in the database")
 
@@ -94,7 +99,7 @@ class Database:
         """Generator for paginated getting of feed urls from db."""
         offset = 0
         while True:
-            urls = self.query("SELECT feed_url FROM feeds LIMIT ? OFFSET ?", (batch_size, offset))
+            urls = self.query("SELECT url FROM rss_feeds LIMIT ? OFFSET ?", (batch_size, offset))
 
             if not urls:
                 break  # If no urls are returned, break the loop
@@ -108,20 +113,36 @@ class Database:
         """Delete a feed from the database."""
         try:
             self.query("DELETE FROM rss_feeds WHERE url = ?", feed_url)
+            logger.info("Feed has been deleted from the database")
         except sqlite3.IntegrityError:
             logger.info("Feed not found in the database")
 
-    def is_post_exists_in_db(self, hashed_posted_image_url: tuple) -> None:
+    def is_post_exists_in_db(self, hashed_posted_image_url) -> bool:
         """Check if a post has been posted."""
-        try:
-            self.query("SELECT hashed_posted_image_url \
-             FROM posted_images WHERE hashed_posted_image_url = ?", hashed_posted_image_url)
-        except sqlite3.IntegrityError:
-            logger.info("No posts found in the database")
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM posted_images WHERE hashed_posted_image_url = ?)",
+                       (hashed_posted_image_url,))
+        return cursor.fetchone()[0] == 1
 
     def get_post_date_cut_off(self):
         """Get the cut-off date for posts."""
         try:
-            self.query("SELECT post_date_cut_off FROM config", fetch_one=True)
+            result = self.query("SELECT post_date_cut_off FROM config", fetch_one=True)
+            if result:
+                # Transform object from db to datetime
+                logger.info(f"Cut-off date found in db config table: {result[0]}")
+                return result[0]
+            else:
+                logger.error("No cut-off date found in config.post_date_cut_off")
+                return None
+        except sqlite3.IntegrityError as e:
+            logger.error(f"Database error when fetching cut-off date: {e}")
+            return None
+
+    def insert_new_hashed_post_guid(self, hashed_posted_image_url) -> None:
+        """Insert a new post guid into the database."""
+        try:
+            self.query("INSERT INTO posted_images (hashed_posted_image_url) VALUES (?)", hashed_posted_image_url)
+            logger.info("New post has been added to the database")
         except sqlite3.IntegrityError:
-            logger.error("No cut-off date found in config.post_date_cut_off")
+            logger.info("Post already exists in the database")
