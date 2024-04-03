@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timezone
 from animachBot.logger.logger import logger
 from animachBot.database.database import Database
+from animachBot.image.image_validator import ImageValidator
+from animachBot.image.image_resizer import ImageResizer
 
 
 def extract_img_links_from_entry_description(html):
@@ -32,24 +34,54 @@ class FeedParser:
 
     def process_entries(self, entries):
         cut_off_date = self.get_post_date_cut_off()
+
         for entry in entries:
             published_datetime = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+
             if published_datetime < cut_off_date:
                 continue
+
             if "R-18" in entry.category:
                 logger.info(f"Post with R-18 category found: {entry.link}, skipping...")
                 continue
+
             if not self.database.is_post_exists_in_db(entry.id):
+
                 img_links = extract_img_links_from_entry_description(entry.description)
-                yield {
-                    'title': entry.title,
-                    'link': entry.link,
-                    'published': entry.published,
-                    'img_links': img_links,
-                    'author': entry.author,
-                    'id': entry.id,
-                    'category': entry.category,
-                }
+                # valid_images = []
+                # resized_images = []
+                images = []
+                for img_link in img_links:
+                    if img_link:
+                        images.append(img_link)
+                    else:
+                        yield {
+                                'images': img_link,
+                                'author': entry.author if hasattr(entry, 'author') else 'Unknown',
+                                'post_link': entry.id
+                            }
+                #     logger.info(f"Image link found: {img_link}, checking if it's valid...")
+                #
+                #     if ImageValidator().is_valid_image(img_link):
+                #         valid_images.append(img_link)
+                #
+                #     else:
+                #         logger.info(f"Image link is not valid: {img_link}")
+                #         resized_image = ImageResizer().resize_image(img_link, image_name=img_link.rsplit('/', 1)[-1])
+                #         if resized_image:
+                #             resized_images.append(resized_image)
+                # if valid_images:
+                #     yield {
+                #         'images': valid_images,
+                #         'author': entry.author if hasattr(entry, 'author') else 'Unknown',
+                #         'post_link': entry.id
+                #     }
+                # if resized_images:
+                #     yield {
+                #         'images': resized_images,
+                #         'author': entry.author if hasattr(entry, 'author') else 'Unknown',
+                #         'post_link': entry.id
+                #     }
 
     def process_fetched_feeds(self):
         obtained_urls = self.database.fetch_feed_urls()

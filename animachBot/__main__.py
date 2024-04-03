@@ -1,7 +1,9 @@
 from animachBot.config.config import Config
 from pathlib import Path
+from animachBot.logger.logger import logger
 from animachBot.database.database import Database
 from animachBot.rss_feed_parser.rss_feed_parser import FeedParser
+from animachBot.telegram_bot.telegram_bot_media import TelegramMediaGroupSender
 
 
 def main():
@@ -9,9 +11,10 @@ def main():
     config = Config(config_path)
     db = Database(config.get("animachBot.database.path"))
     db.connect()
-    parser = FeedParser(db)
-    for feed in parser.process_fetched_feeds():
-        print(feed)  # Do something with the feed data
+    feed_parser = FeedParser(db)
+    telegram_sender = TelegramMediaGroupSender(config.get("animachBot.telegram.bot_token"), config.get("animachBot.telegram.channel_id"))
+    for entry_data in feed_parser.process_fetched_feeds():
+        telegram_sender.send_media_group([entry_data])
 
 
 if __name__ == '__main__':
