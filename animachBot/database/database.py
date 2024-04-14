@@ -117,14 +117,14 @@ class Database:
         except sqlite3.IntegrityError:
             logger.info("Feed not found in the database")
 
-    def is_post_exists_in_db(self, hashed_posted_image_url) -> bool:
+    def is_post_exists_in_db(self, hashed_published_guid) -> bool:
         """Check if a post has been posted."""
         cursor = self.conn.cursor()
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM posted_images WHERE hashed_posted_image_url = ?)",
-                       (hashed_posted_image_url,))
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM published_guids WHERE hashed_published_guid = ?)",
+                       (hashed_published_guid,))
         return cursor.fetchone()[0] == 1
 
-    def get_last_post_id(self, feed_url):
+    def get_last_posted_guid(self, feed_url):
         """Get the last post ID from the database."""
         try:
             result = self.query("SELECT last_published_rss_entry_guid FROM rss_feeds "
@@ -133,12 +133,21 @@ class Database:
                 logger.info(f"Last published guid found in db rss_feeds table for the feed {feed_url}: {result[0]}")
                 return result[0]
             else:
-                logger.error("No last published guid found in rss_feeds.last_published_rss_entry_guid"
-                             " for the feed {feed_url}".format(feed_url=feed_url))
+                logger.info("No last published guid found in rss_feeds.last_published_rss_entry_guid"
+                            " for the feed {feed_url}".format(feed_url=feed_url))
                 return None
         except sqlite3.IntegrityError as e:
             logger.error(f"Database error when fetching last published guid: {e}")
             return None
+
+    def update_last_posted_guid(self, feed_url, last_published_guid):
+        """Update the last posted guid into the database."""
+        try:
+            self.query("UPDATE rss_feeds SET last_published_rss_entry_guid = ? WHERE url = ?",
+                       (last_published_guid, feed_url))
+            logger.info("Last published guid has been added to the database")
+        except sqlite3.Error:
+            logger.error("Failed to insert last published guid into the database")
 
     def get_post_date_cut_off(self):
         """Get the cut-off date for posts."""
@@ -155,10 +164,11 @@ class Database:
             logger.error(f"Database error when fetching cut-off date: {e}")
             return None
 
-    def insert_new_hashed_post_guid(self, hashed_posted_image_url) -> None:
+    def insert_new_hashed_post_guid(self, published_guid, hashed_published_guid) -> None:
         """Insert a new post guid into the database."""
         try:
-            self.query("INSERT INTO posted_images (hashed_posted_image_url) VALUES (?)", hashed_posted_image_url)
+            self.query("INSERT INTO published_guids (published_guid, hashed_published_guid) VALUES (?, ?)",
+                       (published_guid, hashed_published_guid, ))
             logger.info("New post has been added to the database")
-        except sqlite3.IntegrityError:
-            logger.info("Post already exists in the database")
+        except sqlite3.Error:
+            logger.error("Failed to insert new post into the database")

@@ -14,7 +14,7 @@ class ImageResizer:
         self.max_size_bytes = max_size_bytes
         self.temp_dir = tempfile.mkdtemp()
 
-    def resize_image(self, url, image_name):
+    def resize_image(self, url):
         try:
             with urllib.request.urlopen(url) as response:
                 image_data = response.read()
@@ -27,6 +27,7 @@ class ImageResizer:
         image = image.resize((self.target_width, self.target_height), Image.Resampling.LANCZOS)
 
         # Save the resized image to the temporary directory
+        image_name = os.path.basename(url)
         temp_image_path = os.path.join(self.temp_dir, image_name)
         image.save(temp_image_path)
 

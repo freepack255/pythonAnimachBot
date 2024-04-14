@@ -1,6 +1,7 @@
 from PIL import Image
 import io
 import urllib.request
+import urllib3
 from animachBot.logger.logger import logger
 
 
@@ -64,3 +65,21 @@ class ImageValidator:
             return False
 
         return True
+
+
+class PixivMediaMixin(object):
+    url: str
+    origin_url: str
+    _urllib3_headers_for_web_image = {}
+
+    def convert_from_rsshub_to_pixiv_image(self) -> None:
+        netloc = urllib3.util.parse_url(self.url).netloc
+        if netloc == "i.pximg.net":
+            logger.info(msg=f"Image's URL is already converted to i.pximg.net")
+            return None
+        elif netloc != "pixiv.rsshub.app":
+            raise ValueError(f"Other sources rather than Pixiv.rsshub.app are not supported for {self.url}")
+
+        self.origin_url = self.url
+        self.url = self.url.replace('pixiv.rsshub.app', 'i.pximg.net')
+        self._urllib3_headers_for_web_image.update({"Referer": "https://www.pixiv.net/"})
