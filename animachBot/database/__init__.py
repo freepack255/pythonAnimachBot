@@ -1,3 +1,0 @@
-"""
-imports the database module
-"""
