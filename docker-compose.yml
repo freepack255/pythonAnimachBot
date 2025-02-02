@@ -1,0 +1,37 @@
+---
+
+services:
+  rsshub:
+    image: diygod/rsshub@sha256:b541cdceef345329a8c83884d1c70aa923ced4bfa84abce9ac4f7f08fc1ca398
+    container_name: rsshub
+    ports:
+      - "1200:1200"
+    environment:
+      - PIXIV_REFRESHTOKEN=TOKEN # https://gist.github.com/ZipFile/c9ebedb224406f4f11845ab700124362
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1200/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pythonanimachbot
+    restart: unless-stopped
+
+  bot:
+    build: .
+    container_name: PythonAnimach
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      rsshub:
+        condition: service_healthy
+    networks:
+      - pythonanimachbot
+    restart: unless-stopped
+
+networks:
+  pythonanimachbot:
+    driver: bridge
