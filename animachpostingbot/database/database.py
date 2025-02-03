@@ -90,6 +90,12 @@ class Database:
         logger.info(f"[Database instance {self.instance_id}] Listed users: {user_list}")
         return user_list
 
+    async def user_exists(self, user_id: str) -> bool:
+        rows = await self._execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
+        exists = len(rows) > 0
+        logger.info(f"[Database instance {self.instance_id}] User '{user_id}' exists: {exists}")
+        return exists
+
     # -------------------------------------
     # CRUD for the "posted_guids" table
     # -------------------------------------

@@ -14,6 +14,7 @@ TELEGRAM_BOT_TOKEN: Optional[str] = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHANNEL_ID: Optional[str] = os.getenv("TELEGRAM_CHANNEL_ID")
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 LOG_FILE: str = os.getenv("LOG_FILE", "../logs/bot.log")
+CHECK_INTERVAL_IN_SECONDS: int = int(os.getenv("CHECK_INTERVAL_IN_SECONDS", 3600)) # Default: 1 hour
 DB_FILE: str = os.getenv("DB_FILE", "../../data/database.db")
 RSSHUB_URL: str = os.getenv("RSSHUB_URL", "http://localhost:1200/")
 

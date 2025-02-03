@@ -106,6 +106,7 @@ async def add_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Adds one or more users to the database.
     Usage: /adduser <user_id1> [user_id2 user_id3 ...]
+    This command checks for duplicates and reports which IDs were added and which already exist.
     """
     message = update.effective_message
     admin_id = update.effective_user.id if update.effective_user else None
@@ -117,29 +118,39 @@ async def add_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_text("Usage: /adduser <user_id1> [user_id2 user_id3 ...]")
         return
 
-    user_ids_to_add = context.args
-    # Set an upper limit to avoid huge inserts.
+    # Strip and filter the user IDs provided as arguments.
+    user_ids_to_add = [uid.strip() for uid in context.args if uid.strip()]
     if len(user_ids_to_add) > 50:
         await message.reply_text("Error: Too many user IDs at once (max 50).")
         return
 
-    # Validate user IDs. If a single entry is invalid, skip or handle accordingly.
-    valid_user_ids = []
+    added = []
+    duplicates = []
+    errors = []
+
     for uid in user_ids_to_add:
-        uid_str = uid.strip()
-        if not uid_str:
-            continue
-        # You can add more checks here (e.g., length or pattern).
-        valid_user_ids.append(uid_str)
+        try:
+            exists = await db.user_exists(uid)
+            if exists:
+                duplicates.append(uid)
+            else:
+                await db.add_user(uid)
+                added.append(uid)
+        except Exception as e:
+            logger.error(f"Error adding user {uid}: {e}")
+            errors.append(uid)
 
-    added_count = 0
-    for uid_str in valid_user_ids:
-        await db.add_user(uid_str)
-        added_count += 1
+    reply_parts = []
+    if added:
+        reply_parts.append(f"Added {len(added)} user(s): {', '.join(added)}.")
+    if duplicates:
+        reply_parts.append(f"These user IDs already exist: {', '.join(duplicates)}.")
+    if errors:
+        reply_parts.append(f"Failed to add these user IDs due to errors: {', '.join(errors)}.")
 
-    await message.reply_text(f"Added {added_count} users successfully.")
-    logger.info(f"{added_count} user(s) added by admin {admin_id}.")
-
+    reply_text = "\n".join(reply_parts)
+    await message.reply_text(reply_text)
+    logger.info(f"Admin {admin_id} added users: {added}, duplicates: {duplicates}, errors: {errors}")
 
 async def remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """

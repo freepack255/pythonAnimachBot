@@ -1,11 +1,13 @@
 import asyncio
 from datetime import datetime, timezone
+
 from loguru import logger
+
 from animachpostingbot.logging_config import setup_logging
 
 setup_logging()
 
-from animachpostingbot.config.config import RSSHUB_URL, TELEGRAM_BOT_TOKEN, START_FROM_PARSING_DATE, TELEGRAM_CHANNEL_ID
+from animachpostingbot.config.config import RSSHUB_URL, TELEGRAM_BOT_TOKEN, CHECK_INTERVAL_IN_SECONDS
 from animachpostingbot.parsers.pixiv_parser import PixivParser
 from animachpostingbot.workers.worker import worker, processed_guids
 from animachpostingbot.database.database import db_instance as db
@@ -60,7 +62,7 @@ async def main_loop():
 
     num_workers = 2
     worker_tasks = [asyncio.create_task(worker(queue, db, worker_id=i + 1)) for i in range(num_workers)]
-    check_interval = 6 * 3600  # 6 hours
+    check_interval_in_seconds = CHECK_INTERVAL_IN_SECONDS
 
     try:
         while True:
@@ -71,7 +73,7 @@ async def main_loop():
             now_ts = datetime.now(timezone.utc).isoformat()
             await db.set_setting("last_posted_timestamp", now_ts)
             logger.info(f"Feed processing cycle complete. Updated last_posted_timestamp to {now_ts}. Sleeping for 6 hours...")
-            await asyncio.sleep(check_interval)
+            await asyncio.sleep(check_interval_in_seconds)
     except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("Shutdown signal received, cancelling tasks...")
     finally:
