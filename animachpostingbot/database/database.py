@@ -5,22 +5,17 @@ from loguru import logger
 from animachpostingbot.config.config import DB_FILE
 from typing import Optional, Union, List
 
-_instance_count = 0
-
 class Database:
     def __init__(self, db_file: str = DB_FILE):
-        global _instance_count
-        _instance_count += 1
-        self.instance_id = _instance_count
         self.db_file = db_file
         # Ensure that the directory for the database file exists.
         db_dir = os.path.dirname(os.path.abspath(self.db_file))
         os.makedirs(db_dir, exist_ok=True)
-        logger.info(f"[Database instance {self.instance_id}] Database initialized with file: {self.db_file}")
-        logger.info(f"[Database instance {self.instance_id}] Database file path: {os.path.abspath(self.db_file)}")
+        logger.info(f"Database initialized with file: {self.db_file}")
+        logger.info(f"Database file path: {os.path.abspath(self.db_file)}")
         # Log a short traceback to see where this instance was created.
         stack = "".join(traceback.format_stack(limit=10))
-        logger.debug(f"[Database instance {self.instance_id}] Created with call stack:\n{stack}")
+        logger.debug(f"Created with call stack:\n{stack}")
 
     async def _execute(self, query: str, params: tuple = (), commit: bool = False):
         try:
@@ -32,7 +27,7 @@ class Database:
                     await db.commit()
                 return result
         except Exception as e:
-            logger.error(f"[Database instance {self.instance_id}] Database error: {e}\nQuery: {query}\nParams: {params}")
+            logger.error(f"Database error: {e}\nQuery: {query}\nParams: {params}")
             raise
 
     async def init_db(self):
@@ -60,14 +55,14 @@ class Database:
         await self._execute(create_users_query, commit=True)
         await self._execute(create_guids_query, commit=True)
         await self._execute(create_settings_query, commit=True)
-        logger.info(f"[Database instance {self.instance_id}] Database initialized with tables 'users', 'posted_guids', and 'settings'.")
+        logger.info(f"Database initialized with tables 'users', 'posted_guids', and 'settings'.")
 
     # ---------------------------
     # CRUD for the "users" table
     # ---------------------------
     async def add_user(self, user_id: str):
         await self._execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,), commit=True)
-        logger.info(f"[Database instance {self.instance_id}] Added user: {user_id}")
+        logger.info(f"Added user: {user_id}")
 
     async def remove_user(self, user_id: Union[str, List[str]]):
         """
@@ -82,18 +77,18 @@ class Database:
             query = "DELETE FROM users WHERE user_id = ?"
             params = (user_id,)
         await self._execute(query, params, commit=True)
-        logger.info(f"[Database instance {self.instance_id}] Removed user(s): {user_id}")
+        logger.info(f"Removed user(s): {user_id}")
 
     async def list_users(self) -> list:
         rows = await self._execute("SELECT user_id FROM users")
         user_list = [row[0] for row in rows]
-        logger.info(f"[Database instance {self.instance_id}] Listed users: {user_list}")
+        logger.info(f"Listed users: {user_list}")
         return user_list
 
     async def user_exists(self, user_id: str) -> bool:
         rows = await self._execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         exists = len(rows) > 0
-        logger.info(f"[Database instance {self.instance_id}] User '{user_id}' exists: {exists}")
+        logger.info(f"User '{user_id}' exists: {exists}")
         return exists
 
     # -------------------------------------
@@ -101,27 +96,27 @@ class Database:
     # -------------------------------------
     async def add_posted_guid(self, guid: str):
         await self._execute("INSERT OR IGNORE INTO posted_guids (guid) VALUES (?)", (guid,), commit=True)
-        logger.info(f"[Database instance {self.instance_id}] Added posted guid: {guid}")
+        logger.info(f"Added posted guid: {guid}")
 
     async def is_guid_posted(self, guid: str) -> bool:
         rows = await self._execute("SELECT guid FROM posted_guids WHERE guid = ?", (guid,))
         is_posted = len(rows) > 0
-        logger.info(f"[Database instance {self.instance_id}] GUID '{guid}' is already posted: {is_posted}")
+        logger.info(f"GUID '{guid}' is already posted: {is_posted}")
         return is_posted
 
     async def list_posted_guids(self) -> list:
         rows = await self._execute("SELECT guid FROM posted_guids")
         posted_guids = [row[0] for row in rows]
-        logger.info(f"[Database instance {self.instance_id}] Listed posted guids: {posted_guids}")
+        logger.info(f"Listed posted guids: {posted_guids}")
         return posted_guids
 
     async def remove_posted_guid(self, guid: str):
         await self._execute("DELETE FROM posted_guids WHERE guid = ?", (guid,), commit=True)
-        logger.info(f"[Database instance {self.instance_id}] Removed posted guid: {guid}")
+        logger.info(f"Removed posted guid: {guid}")
 
     async def update_posted_guid(self, guid: str):
         await self._execute("UPDATE posted_guids SET posted_at = CURRENT_TIMESTAMP WHERE guid = ?", (guid,), commit=True)
-        logger.info(f"[Database instance {self.instance_id}] Updated posted guid: {guid}")
+        logger.info(f"Updated posted guid: {guid}")
 
     async def update_tg_message_link(self, guid: str, tg_message_link: str):
         await self._execute(
@@ -129,7 +124,7 @@ class Database:
             (tg_message_link, guid),
             commit=True
         )
-        logger.info(f"[Database instance {self.instance_id}] Updated Telegram message link for GUID {guid}: {tg_message_link}")
+        logger.info(f"Updated Telegram message link for GUID {guid}: {tg_message_link}")
 
     # ---------------------------
     # CRUD for the "settings" table
@@ -142,7 +137,7 @@ class Database:
 
     async def set_setting(self, key: str, value: str):
         await self._execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value), commit=True)
-        logger.info(f"[Database instance {self.instance_id}] Updated setting '{key}' to '{value}'.")
+        logger.info(f"Updated setting '{key}' to '{value}'.")
 
 # Create a singleton instance.
 db_instance = Database()

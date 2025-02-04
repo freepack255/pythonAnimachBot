@@ -67,12 +67,14 @@ async def main_loop():
     try:
         while True:
             logger.info("Starting a new feed processing cycle.")
-            await process_feeds(db, queue)
+            new_last_ts = await process_feeds(db, queue)
             await queue.join()
-            # Update last_posted_timestamp setting to current UTC time.
-            now_ts = datetime.now(timezone.utc).isoformat()
-            await db.set_setting("last_posted_timestamp", now_ts)
-            logger.info(f"Feed processing cycle complete. Updated last_posted_timestamp to {now_ts}. Sleeping for 6 hours...")
+            if new_last_ts:
+                await db.set_setting("last_posted_timestamp", new_last_ts)
+                logger.info(f"Feed processing cycle complete. Updated last_posted_timestamp to {new_last_ts}.")
+            else:
+                logger.info("Feed processing cycle complete. No new posts processed; last_posted_timestamp not updated.")
+            logger.info(f"Sleeping for {check_interval_in_seconds} seconds...")
             await asyncio.sleep(check_interval_in_seconds)
     except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("Shutdown signal received, cancelling tasks...")
@@ -80,7 +82,6 @@ async def main_loop():
         for task in worker_tasks:
             task.cancel()
         polling_task.cancel()
-        # Stop the updater to avoid "This Updater is still running!" error.
         await app.updater.stop()
         await app.stop()
         await app.shutdown()
