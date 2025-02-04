@@ -12,6 +12,7 @@ import sys  # For exiting if critical vars are missing
 # Retrieve environment variables
 TELEGRAM_BOT_TOKEN: Optional[str] = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHANNEL_ID: Optional[str] = os.getenv("TELEGRAM_CHANNEL_ID")
+NOTIFICATION_CHAT_ID: Optional[str] = os.getenv("NOTIFICATION_CHAT_ID")
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 LOG_FILE: str = os.getenv("LOG_FILE", "../logs/bot.log")
 CHECK_INTERVAL_IN_SECONDS: int = int(os.getenv("CHECK_INTERVAL_IN_SECONDS", 3600)) # Default: 1 hour

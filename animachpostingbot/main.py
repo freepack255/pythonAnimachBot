@@ -1,15 +1,13 @@
 import asyncio
 from datetime import datetime, timezone
-
 from loguru import logger
-
 from animachpostingbot.logging_config import setup_logging
 
 setup_logging()
 
-from animachpostingbot.config.config import RSSHUB_URL, TELEGRAM_BOT_TOKEN, CHECK_INTERVAL_IN_SECONDS
+from animachpostingbot.config.config import RSSHUB_URL, TELEGRAM_BOT_TOKEN, CHECK_INTERVAL_IN_SECONDS, NOTIFICATION_CHAT_ID
 from animachpostingbot.parsers.pixiv_parser import PixivParser
-from animachpostingbot.workers.worker import worker, processed_guids
+from animachpostingbot.workers import worker
 from animachpostingbot.database.database import db_instance as db
 from animachpostingbot.bot.admin import register_admin_handlers
 
@@ -31,7 +29,6 @@ async def process_feeds(database: type(db), queue: asyncio.Queue):
     """
     urls = await get_urls_from_db(database)
     parsers = [PixivParser(url, queue, database) for url in urls]
-    # Iterate over each parser and call its parse_data method.
     parser_tasks = [asyncio.create_task(parser.parse_data()) for parser in parsers]
     parsed_data = await asyncio.gather(*parser_tasks)
     process_tasks = [
@@ -45,7 +42,7 @@ async def initialize_posted_guids(db):
     Loads posted GUIDs from the database and updates the in-memory set.
     """
     posted_guids = await db.list_posted_guids()
-    processed_guids.update(posted_guids)
+    worker.processed_guids.update(posted_guids)
 
 async def main_loop():
     await db.init_db()
@@ -61,7 +58,7 @@ async def main_loop():
     polling_task = asyncio.create_task(app.updater.start_polling())
 
     num_workers = 2
-    worker_tasks = [asyncio.create_task(worker(queue, db, worker_id=i + 1)) for i in range(num_workers)]
+    worker_tasks = [asyncio.create_task(worker.worker(queue, db, worker_id=i + 1)) for i in range(num_workers)]
     check_interval_in_seconds = CHECK_INTERVAL_IN_SECONDS
 
     try:
@@ -69,15 +66,28 @@ async def main_loop():
             logger.info("Starting a new feed processing cycle.")
             new_last_ts = await process_feeds(db, queue)
             await queue.join()
+            logger.info(f"Cycle complete. Total messages posted to Telegram: {worker.messages_posted_count}")
+            worker.messages_posted_count = 0  # reset counter for next cycle
+
             if new_last_ts:
                 await db.set_setting("last_posted_timestamp", new_last_ts)
-                logger.info(f"Feed processing cycle complete. Updated last_posted_timestamp to {new_last_ts}.")
+                logger.info(f"Updated last_posted_timestamp to {new_last_ts}.")
             else:
-                logger.info("Feed processing cycle complete. No new posts processed; last_posted_timestamp not updated.")
+                logger.info("No new posts processed; last_posted_timestamp not updated.")
+
             logger.info(f"Sleeping for {check_interval_in_seconds} seconds...")
             await asyncio.sleep(check_interval_in_seconds)
-    except (KeyboardInterrupt, asyncio.CancelledError):
+    except (KeyboardInterrupt, asyncio.CancelledError) as e:
         logger.info("Shutdown signal received, cancelling tasks...")
+        raise
+    except Exception as e:
+        error_message = f"Bot encountered an error and stopped: {e}"
+        logger.error(error_message)
+        try:
+            await app.bot.send_message(chat_id=NOTIFICATION_CHAT_ID, text=error_message)
+        except Exception as notify_exception:
+            logger.error(f"Failed to send notification to chat {NOTIFICATION_CHAT_ID}: {notify_exception}")
+        raise
     finally:
         for task in worker_tasks:
             task.cancel()
