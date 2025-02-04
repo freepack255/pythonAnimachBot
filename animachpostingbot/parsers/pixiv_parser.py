@@ -136,9 +136,14 @@ class PixivParser:
                 continue
 
             category = entry.get("category", "")
-            if "R-18" in category or "AI" in category:
-                logger.info(f"Skipping restricted entry: {entry.get('link', 'no link')}")
-                continue
+            if isinstance(category, list):
+                if any(("漫画" in cat) or ("R-18" in cat) or ("AI" in cat) for cat in category):
+                    logger.info(f"Skipping restricted entry (manga/R-18/AI): {entry.get('link', 'no link')}")
+                    continue
+            else:
+                if ("漫画" in category) or ("R-18" in category) or ("AI" in category):
+                    logger.info(f"Skipping restricted entry (manga/R-18/AI): {entry.get('link', 'no link')}")
+                    continue
 
             if normalized_guid and self.db:
                 if await self.db.is_guid_posted(normalized_guid):
