@@ -10,6 +10,7 @@ from telegram.ext import (
 )
 from loguru import logger
 from animachpostingbot.database.database import db_instance as db
+from animachpostingbot.config.config import TELEGRAM_CHANNEL_ID
 
 # Retrieve the initial admin IDs from the environment.
 # Example in .env: ADMIN_IDS=123456789,987654321
@@ -180,6 +181,51 @@ async def remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await message.reply_text(f"Removed {removed_count} user(s) successfully.")
     logger.info(f"Removed {removed_count} user(s) by admin {admin_id}.")
 
+async def delete_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Deletes one or more posts from the Telegram channel.
+    Usage: /deletepost <message_id1> [message_id2 ...]
+    """
+    message = update.effective_message
+    admin_id = update.effective_user.id if update.effective_user else None
+    if admin_id not in ADMIN_IDS:
+        await message.reply_text("You are not authorized to use this command.")
+        return
+
+    if not context.args:
+        await message.reply_text("Usage: /deletepost <message_id1> [message_id2 ...]")
+        return
+
+    channel_id = TELEGRAM_CHANNEL_ID
+    # Собираем список message_id (приводим к int)
+    message_ids = []
+    for arg in context.args:
+        try:
+            message_ids.append(int(arg.strip()))
+        except Exception as e:
+            logger.error(f"Invalid message ID '{arg}': {e}")
+
+    if not message_ids:
+        await message.reply_text("No valid message IDs provided.")
+        return
+
+    successes = []
+    failures = []
+    for msg_id in message_ids:
+        try:
+            await context.bot.delete_message(chat_id=channel_id, message_id=msg_id)
+            successes.append(str(msg_id))
+        except Exception as e:
+            logger.error(f"Failed to delete message {msg_id}: {e}")
+            failures.append(str(msg_id))
+
+    response_parts = []
+    if successes:
+        response_parts.append(f"Deleted messages: {', '.join(successes)}")
+    if failures:
+        response_parts.append(f"Failed to delete messages: {', '.join(failures)}")
+    await message.reply_text("\n".join(response_parts))
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Sends a help text listing all available commands and their usage.
@@ -193,6 +239,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "<b>/finduser &lt;user_id&gt;</b> - Check if an user exists in the database.\n\n"
         "<b>/adduser &lt;user_id1&gt; [user_id2 ...]</b> - Add one or more user IDs (at least one is required).\n\n"
         "<b>/removeuser &lt;user_id1&gt; [user_id2 ...]</b> - Remove one or more user IDs (at least one is required).\n\n"
+        "<b>/deletepost &lt;message_id1&gt; [message_id2 ...]</b> - Delete one or more posts from the Telegram "
+        "channel.\n\n"
+        "<b>/help</b> - Show this help text.\n\n"
         "Command Parameter Notation:\n"
         "- &lt; &gt; indicates a required parameter.\n"
         "- [ ] indicates an optional parameter (you can supply multiple values).\n"
@@ -222,6 +271,7 @@ def register_admin_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("finduser", find_user))
     app.add_handler(CommandHandler("adduser", add_user))
     app.add_handler(CommandHandler("removeuser", remove_user))
+    app.add_handler(CommandHandler("deletepost", delete_post))
     app.add_handler(CommandHandler("help", help_command))
 
     # Inline callback for pagination
