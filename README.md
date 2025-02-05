@@ -5,6 +5,7 @@ To run the bot add .env file with the following content
 ```
 TELEGRAM_BOT_TOKEN=TOKEN
 TELEGRAM_CHANNEL_ID=-1001234567890
+NOTIFICATION_CHAT_ID=-1009876543210 # Where to send notifications if bot is down
 START_FROM_PARSING_DATE="2024-01-01 00:00:00Z"
 LOG_LEVEL=INFO
 LOG_FILE=logs/bot.log
