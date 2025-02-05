@@ -2,7 +2,7 @@ import asyncio
 from loguru import logger
 from animachpostingbot.bot.telegram_bot import send_images_to_telegram, application
 from animachpostingbot.config.config import TELEGRAM_CHANNEL_ID
-from animachpostingbot.database.database import db_instance  # if needed for type hints
+from animachpostingbot.database.database import db_instance  # для type hints
 
 # Global lock to protect duplicate checking.
 duplicate_lock = asyncio.Lock()
@@ -11,7 +11,7 @@ processed_guids = set()
 # Global dictionary to record the media_group_id for each GUID.
 sent_media_groups = {}  # holds {normalized_guid: media_group_id}
 
-# Global counter for messages posted (using lowercase to follow conventions)
+# Global counter for messages posted (используем нижний регистр для переменной)
 messages_posted_count = 0
 
 async def worker(queue, db, worker_id: int):
@@ -47,7 +47,6 @@ async def worker(queue, db, worker_id: int):
                 logger.info(
                     f"[Worker {worker_id}] Posting succeeded for normalized_guid '{normalized_guid}', adding to database with link {tg_message_link}."
                 )
-                # Get media_group_id from the first message.
                 media_group_id = getattr(messages[0], "media_group_id", None)
                 if normalized_guid in sent_media_groups:
                     original_media_group_id = sent_media_groups[normalized_guid]
