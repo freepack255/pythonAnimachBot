@@ -14,9 +14,14 @@ CHECK_INTERVAL_IN_SECONDS=60
 RSSHUB_URL=http://rsshub:1200/
 ADMIN_IDS=123456789,987654321
 ```
-Set the REFRESH_TOKEN in docker-compose.yml. How to get refresh token - https://gist.github.com/ZipFile/c9ebedb224406f4f11845ab700124362
+Set the PIXIV_REFRESHTOKEN and TWITTER_AUTH_TOKEN in docker-compose.yml.
+How to get refresh token - https://gist.github.com/ZipFile/c9ebedb224406f4f11845ab700124362
+To get twitter auth token you need to log in and get cookie auth_token value from https://x.com/
 
-``` PIXIV_REFRESHTOKEN=TOKEN```
+``` 
+PIXIV_REFRESHTOKEN=TOKEN
+TWITTER_AUTH_TOKEN=TOKEN
+```
 
 Then run the bot with docker-compose
 
