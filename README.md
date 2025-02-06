@@ -49,4 +49,6 @@ python-dotenv==1.0.1
 python-telegram-bot==21.10
 ```
 
-# 
+# NSFW
+Bot checks everypost for nsfw content. If it finds it, it will not send it to the channel. 
+https://github.com/tmplink/nsfw_detector?tab=readme-ov-file
