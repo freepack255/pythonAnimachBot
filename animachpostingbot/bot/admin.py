@@ -354,11 +354,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     text = (
         "Available commands:\n\n"
         "<b>/listusers [source]</b> - List all parsed users. Optionally filter by source (pixiv or twitter).\n\n"
-        "<b>/finduser <url> OR /finduser <source> <user_id></b> - Check if a user exists in the database.\n\n"
-        "<b>/adduser <url1> [url2 ...]</b> - Add one or more users by URL. Example:\n"
+        "<b>/finduser &lt;url&gt; OR /finduser &lt;source&gt; &lt;user_id&gt;</b> - Check if a user exists in the database.\n\n"
+        "<b>/adduser &lt;url1&gt; [url2 ...]</b> - Add one or more users by URL. Example:\n"
         "<code>/adduser https://twitter.com/asou_asabu https://www.pixiv.net/en/users/64792103</code>\n\n"
-        "<b>/removeuser <url1> [url2 ...]</b> - Remove one or more users by URL.\n\n"
-        "<b>/deletepost <message_id1> [message_id2 ...]</b> - Delete posts from the Telegram channel.\n\n"
+        "<b>/removeuser &lt;url1&gt; [url2 ...]</b> - Remove one or more users by URL.\n\n"
+        "<b>/deletepost &lt;message_id1&gt; [message_id2 ...]</b> - Delete posts from the Telegram channel.\n\n"
         "<b>/help</b> - Show this help text.\n\n"
         "Note: URL parsing is used to automatically determine the source and user ID."
     )
