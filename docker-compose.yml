@@ -17,6 +17,20 @@ services:
       - pythonanimachbot
     restart: unless-stopped
 
+  nsfw-detector:
+    image: vxlink/nsfw_detector:latest # https://github.com/tmplink/nsfw_detector?tab=readme-ov-file
+    container_name: nsfw-detector
+    ports:
+      - "3333:3333"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pythonanimachbot
+    restart: unless-stopped
+
   bot:
     build: .
     container_name: PythonAnimach
@@ -27,6 +41,8 @@ services:
       - ./data:/app/data
     depends_on:
       rsshub:
+        condition: service_healthy
+      nsfw-detector:
         condition: service_healthy
     networks:
       - pythonanimachbot

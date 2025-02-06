@@ -2,6 +2,8 @@ from PIL import Image
 from io import BytesIO
 from loguru import logger
 import httpx
+from animachpostingbot.config.config import NSFW_DETECTOR_URL
+import asyncio
 
 TELEGRAM_MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 # Preferred dimensions for Telegram; images larger than this will be resized.
@@ -9,8 +11,46 @@ TELEGRAM_PREFERRED_MAX_DIMENSIONS = (1280, 1280)
 TELEGRAM_MIN_DIMENSIONS = (200, 200)  # Minimum dimensions to avoid Telegram issues
 JPEG_QUALITY = 85
 
+NSFW_THRESHOLD = 0.7  # Threshold above which the image is considered NSFW
+
+def get_headers(url: str) -> dict:
+    """
+    Returns appropriate HTTP headers based on the source of the image.
+    For example, for Pixiv images, a Referer is required.
+    For Twitter images, a different referer might be needed.
+    """
+    if "pixiv.net" in url or "pximg.net" in url or "i.pixiv.re" in url or "pixiv" in url:
+        return {"Referer": "https://www.pixiv.net/"}
+    elif "twitter.com" in url or "x.com" in url:
+        return {"Referer": "https://twitter.com/"}
+    else:
+        return {}
+
+async def check_nsfw(image_data: bytes) -> dict:
+    """
+    Sends the image data to the NSFW detector and returns the JSON result.
+    It is expected that the detector returns a JSON with a "result" key containing an "nsfw" probability.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            files = {"file": ("image.jpg", image_data, "image/jpeg")}
+            response = await client.post(f"{NSFW_DETECTOR_URL}/check", files=files)
+            response.raise_for_status()
+            result = response.json()
+            logger.debug(f"NSFW detector returned: {result}")
+            return result
+    except Exception as e:
+        logger.error(f"Error during NSFW detection: {e}")
+        return {}  # Return an empty dictionary in case of error
+
 async def validate_and_resize_image(url: str) -> BytesIO | None:
-    headers = {"Referer": "https://www.pixiv.net/"}
+    """
+    Fetches an image from the given URL, resizes it if necessary,
+    and returns a BytesIO object containing the processed image.
+    Also sends the image data to the NSFW detector; if the NSFW score is above the threshold,
+    the image is skipped.
+    """
+    headers = get_headers(url)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
@@ -62,6 +102,14 @@ async def validate_and_resize_image(url: str) -> BytesIO | None:
         logger.info(f"Processed image {url}: final size {final_size/1024:.2f} KB")
         if final_size > TELEGRAM_MAX_FILE_SIZE:
             logger.warning(f"Skipping image {url}: File too large after compression ({final_size/1024:.2f} KB)")
+            return None
+
+        # NSFW detection: send image to the local NSFW detector.
+        nsfw_result = await check_nsfw(output.getvalue())
+        logger.info(f"NSFW detector result for {url}: {nsfw_result}")
+        # Check the nested value under 'result'
+        if nsfw_result.get("result", {}).get("nsfw", 0) > NSFW_THRESHOLD:
+            logger.warning(f"Image {url} flagged as NSFW: {nsfw_result}. Skipping this image.")
             return None
 
         return output

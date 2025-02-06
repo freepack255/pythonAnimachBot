@@ -1,5 +1,6 @@
-from typing import Any, Optional
 import asyncio
+from typing import Optional, Any
+
 from telegram import InputMediaPhoto
 from telegram.ext import ApplicationBuilder
 from telegram.error import RetryAfter, TimedOut
@@ -23,7 +24,7 @@ async def send_media_group_with_retries(chat_id: int | str, media_group: list, t
     while retries < max_retries:
         try:
             messages = await application.bot.send_media_group(chat_id=chat_id, media=media_group)
-            logger.info(f"[send_media_group_with_retries] Message for GUID '{guid}' sent successfully on attempt {retries+1}: {messages}")
+            logger.debug(f"[send_media_group_with_retries] Message for GUID '{guid}' sent successfully on attempt {retries+1}: {messages}")
             return messages
 
         except RetryAfter as e:
@@ -56,13 +57,12 @@ async def send_images_to_telegram(title: str, images: list, url: str, guid: str,
         try:
             image_data = await validate_and_resize_image(image_url)
             if image_data is None:
-                logger.error(f"Image data is None for URL: {image_url}")
+                logger.warning(f"Image data is None for URL: {image_url}. This image will be skipped.")
                 continue
             if idx == 0:
-                artwork_url = f"https://pixiv.net/artworks/{guid}"
                 album_info = (
                     f"<i><a href='{url}'>{author}</a></i>\n"
-                    f"<b><a href='{artwork_url}'>{title}</a></b>"
+                    f"<b><a href='{guid}'>{title}</a></b>"
                 )
                 media_group.append(InputMediaPhoto(media=image_data, caption=album_info, parse_mode="HTML"))
             else:

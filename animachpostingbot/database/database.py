@@ -1,9 +1,12 @@
 import os
-import aiosqlite
 import traceback
+from typing import Optional, List, Union, Tuple
+
+import aiosqlite
 from loguru import logger
+
 from animachpostingbot.config.config import DB_FILE
-from typing import Optional, Union, List
+
 
 class Database:
     def __init__(self, db_file: str = DB_FILE):
@@ -17,7 +20,7 @@ class Database:
         stack = "".join(traceback.format_stack(limit=10))
         logger.debug(f"Created with call stack:\n{stack}")
 
-    async def _execute(self, query: str, params: tuple = (), commit: bool = False):
+    async def _execute(self, query: str, params: Tuple = (), commit: bool = False):
         try:
             async with aiosqlite.connect(self.db_file) as db:
                 await db.execute("PRAGMA foreign_keys = ON")
@@ -33,10 +36,13 @@ class Database:
     async def init_db(self):
         """
         Create the users, posted_guids, and settings tables if they don't exist.
+        The users table is unified to include a 'source' column.
         """
         create_users_query = """
             CREATE TABLE IF NOT EXISTS users (
-                user_id TEXT PRIMARY KEY
+                user_id TEXT,
+                source TEXT,
+                PRIMARY KEY (user_id, source)
             )
         """
         create_guids_query = """
@@ -55,40 +61,53 @@ class Database:
         await self._execute(create_users_query, commit=True)
         await self._execute(create_guids_query, commit=True)
         await self._execute(create_settings_query, commit=True)
-        logger.info(f"Database initialized with tables 'users', 'posted_guids', and 'settings'.")
+        logger.info("Database initialized with tables 'users', 'posted_guids', and 'settings'.")
 
     # ---------------------------
     # CRUD for the "users" table
     # ---------------------------
-    async def add_user(self, user_id: str):
-        await self._execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,), commit=True)
-        logger.info(f"Added user: {user_id}")
-
-    async def remove_user(self, user_id: Union[str, List[str]]):
+    async def add_user(self, user_id: str, source: str):
         """
-        Removes a user or a list of users from the database.
+        Adds a user with the given user_id and source.
+        """
+        await self._execute(
+            "INSERT OR IGNORE INTO users (user_id, source) VALUES (?, ?)",
+            (user_id, source),
+            commit=True
+        )
+        logger.info(f"Added user: {user_id} with source: {source}")
+
+    async def remove_user(self, user_ids: Union[str, List[str]], source: str):
+        """
+        Removes a user or a list of users from the database for a given source.
         If a list is provided, deletes all matching user IDs.
         """
-        if isinstance(user_id, list):
-            placeholders = ",".join("?" for _ in user_id)
-            query = f"DELETE FROM users WHERE user_id IN ({placeholders})"
-            params = tuple(user_id)
+        if isinstance(user_ids, list):
+            placeholders = ",".join("?" for _ in user_ids)
+            query = f"DELETE FROM users WHERE user_id IN ({placeholders}) AND source = ?"
+            params = tuple(user_ids) + (source,)
         else:
-            query = "DELETE FROM users WHERE user_id = ?"
-            params = (user_id,)
+            query = "DELETE FROM users WHERE user_id = ? AND source = ?"
+            params = (user_ids, source)
         await self._execute(query, params, commit=True)
-        logger.info(f"Removed user(s): {user_id}")
+        logger.info(f"Removed user(s): {user_ids} from source: {source}")
 
-    async def list_users(self) -> list:
-        rows = await self._execute("SELECT user_id FROM users")
+    async def list_users_by_source(self, source: str) -> List[str]:
+        """
+        Returns a list of user_ids filtered by the given source.
+        """
+        rows = await self._execute("SELECT user_id FROM users WHERE source = ?", (source,))
         user_list = [row[0] for row in rows]
-        logger.info(f"Listed users: {user_list}")
+        logger.info(f"Listed users from source '{source}': {user_list}")
         return user_list
 
-    async def user_exists(self, user_id: str) -> bool:
-        rows = await self._execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
+    async def user_exists(self, user_id: str, source: str) -> bool:
+        """
+        Checks if a user with the given user_id and source exists.
+        """
+        rows = await self._execute("SELECT user_id FROM users WHERE user_id = ? AND source = ?", (user_id, source))
         exists = len(rows) > 0
-        logger.info(f"User '{user_id}' exists: {exists}")
+        logger.info(f"User '{user_id}' with source '{source}' exists: {exists}")
         return exists
 
     # -------------------------------------
@@ -104,7 +123,7 @@ class Database:
         logger.info(f"GUID '{guid}' is already posted: {is_posted}")
         return is_posted
 
-    async def list_posted_guids(self) -> list:
+    async def list_posted_guids(self) -> List[str]:
         rows = await self._execute("SELECT guid FROM posted_guids")
         posted_guids = [row[0] for row in rows]
         logger.info(f"Listed posted guids: {posted_guids}")
@@ -138,6 +157,7 @@ class Database:
     async def set_setting(self, key: str, value: str):
         await self._execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value), commit=True)
         logger.info(f"Updated setting '{key}' to '{value}'.")
+
 
 # Create a singleton instance.
 db_instance = Database()

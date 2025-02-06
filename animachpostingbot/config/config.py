@@ -18,6 +18,7 @@ LOG_FILE: str = os.getenv("LOG_FILE", "../logs/bot.log")
 CHECK_INTERVAL_IN_SECONDS: int = int(os.getenv("CHECK_INTERVAL_IN_SECONDS", 3600)) # Default: 1 hour
 DB_FILE: str = os.getenv("DB_FILE", "../../data/database.db")
 RSSHUB_URL: str = os.getenv("RSSHUB_URL", "http://localhost:1200/")
+NSFW_DETECTOR_URL: str = os.getenv("NSFW_DETECTOR_URL", "http://localhost:3333/")
 
 # Retrieve ADMIN_IDS from the environment; expected as a comma-separated list, e.g. "123456789,987654321"
 RAW_ADMIN_IDS: str = os.getenv("ADMIN_IDS", "")
