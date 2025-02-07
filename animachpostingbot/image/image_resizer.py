@@ -1,17 +1,16 @@
-from PIL import Image
 from io import BytesIO
-from loguru import logger
+
 import httpx
-from animachpostingbot.config.config import NSFW_DETECTOR_URL
-import asyncio
+from PIL import Image
+from loguru import logger
+
+from animachpostingbot.config.config import NSFW_DETECTOR_URL, NSFW_THRESHOLD
 
 TELEGRAM_MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 # Preferred dimensions for Telegram; images larger than this will be resized.
 TELEGRAM_PREFERRED_MAX_DIMENSIONS = (1280, 1280)
 TELEGRAM_MIN_DIMENSIONS = (200, 200)  # Minimum dimensions to avoid Telegram issues
 JPEG_QUALITY = 85
-
-NSFW_THRESHOLD = 0.7  # Threshold above which the image is considered NSFW
 
 def get_headers(url: str) -> dict:
     """
