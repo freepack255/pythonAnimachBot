@@ -8,7 +8,8 @@ services:
       - "1200:1200"
     environment:
       - PIXIV_REFRESHTOKEN=TOKEN # https://gist.github.com/ZipFile/c9ebedb224406f4f11845ab700124362
-      - TWITTER_AUTH_TOKEN=TOKEN # Log in and get cookie auth_token from https://x.com/
+      - TWITTER_AUTH_TOKEN=TOKEN # Log in and get cookie auth_token from https://x.com/ -> F12 -> Application -> Cookies -> auth_token
+      - TWITTER_COOKIE=the_full_cookie # For chrome Cookie-Editor extension https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm -> Export -> As Header String
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:1200/"]
       interval: 10s
