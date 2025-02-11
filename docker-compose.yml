@@ -8,24 +8,10 @@ services:
       - "1200:1200"
     environment:
       - PIXIV_REFRESHTOKEN=TOKEN # https://gist.github.com/ZipFile/c9ebedb224406f4f11845ab700124362
-      - TWITTER_AUTH_TOKEN=TOKEN # Log in and get cookie auth_token from https://x.com/ -> F12 -> Application -> Cookies -> auth_token
-      - TWITTER_COOKIE=the_full_cookie # For chrome Cookie-Editor extension https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm -> Export -> As Header String
+      - TWITTER_AUTH_TOKEN=AUTH_TOKEN # Log in and get cookie auth_token from https://x.com/ -> F12 -> Application -> Cookies -> auth_token
+      - TWITTER_COOKIE="" # For Chrome - Cookie-Editor extension https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm -> Export -> As Header String
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:1200/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - pythonanimachbot
-    restart: unless-stopped
-
-  nsfw-detector:
-    image: vxlink/nsfw_detector:latest # https://github.com/tmplink/nsfw_detector?tab=readme-ov-file
-    container_name: nsfw-detector
-    ports:
-      - "3333:3333"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3333/"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,8 +29,6 @@ services:
       - ./data:/app/data
     depends_on:
       rsshub:
-        condition: service_healthy
-      nsfw-detector:
         condition: service_healthy
     networks:
       - pythonanimachbot

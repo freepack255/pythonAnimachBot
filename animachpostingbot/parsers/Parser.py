@@ -90,7 +90,7 @@ class Parser:
         user_link = feed_info.get("link", "") or self.url
         max_processed_ts = None
 
-        for entry in feed.get("entries", []):
+        for entry in reversed(feed.get("entries", [])):
             guid = entry.get("guid", "")
             if not guid:
                 logger.debug("Skipping entry with no valid GUID.")

@@ -1,14 +1,16 @@
+from io import BytesIO
+
 import asyncio
 from typing import Optional, Any
 
 from telegram import InputMediaPhoto
-from telegram.ext import ApplicationBuilder
 from telegram.error import RetryAfter, TimedOut
 from loguru import logger
 from animachpostingbot.image.image_resizer import validate_and_resize_image
 from animachpostingbot.config.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
 
 # Build the Telegram application instance once.
+from telegram.ext import ApplicationBuilder
 application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def send_media_group_with_retries(chat_id: int | str, media_group: list, title: str, guid: str) -> Optional[Any]:
@@ -26,7 +28,6 @@ async def send_media_group_with_retries(chat_id: int | str, media_group: list, t
             messages = await application.bot.send_media_group(chat_id=chat_id, media=media_group)
             logger.debug(f"[send_media_group_with_retries] Message for GUID '{guid}' sent successfully on attempt {retries+1}: {messages}")
             return messages
-
         except RetryAfter as e:
             retries += 1
             recommended_delay = getattr(e, 'retry_after', delay)
@@ -34,12 +35,9 @@ async def send_media_group_with_retries(chat_id: int | str, media_group: list, t
             logger.warning(f"[send_media_group_with_retries] Attempt {retries}/{max_retries} for '{title}', GUID '{guid}' failed with error {e}. Retrying in {delay} seconds.")
             await asyncio.sleep(delay)
             delay *= 2
-
         except TimedOut as e:
-            # On TimedOut, assume the message was delivered and do not retry to avoid duplicates.
             logger.warning(f"[send_media_group_with_retries] TimedOut for '{title}', GUID '{guid}': {e}. Assuming message delivered and not retrying.")
             return None
-
         except Exception as e:
             logger.error(f"[send_media_group_with_retries] Error sending media group for '{title}', GUID '{guid}': {e}")
             return None
@@ -49,22 +47,34 @@ async def send_media_group_with_retries(chat_id: int | str, media_group: list, t
 
 async def send_images_to_telegram(title: str, images: list, url: str, guid: str, author: str) -> tuple:
     """
-    Sends an album to Telegram by attaching a caption only to the first image.
+    Sends an album to Telegram by ensuring at least one image has a caption.
+    The caption is attached to the first valid image.
     Returns a tuple: (True, messages) if successful, or (False, error_detail) on failure.
     """
     media_group = []
-    for idx, image_url in enumerate(images):
+    caption_added = False
+
+    for image_url in images:
         try:
             image_data = await validate_and_resize_image(image_url)
             if image_data is None:
                 logger.warning(f"Image data is None for URL: {image_url}. This image will be skipped.")
                 continue
-            if idx == 0:
-                album_info = (
-                    f"<i><a href='{url}'>{author}</a></i>\n"
-                    f"<b><a href='{guid}'>{title}</a></b>"
-                )
+
+            if not caption_added:
+                # If title is non-empty, use it; otherwise use guid as a fallback.
+                if title:
+                    album_info = (
+                        f"<i><a href='{url}'>{author}</a></i>\n"
+                        f"<b><a href='{guid}'>{title}</a></b>"
+                    )
+                else:
+                    album_info = (
+                        f"<i><a href='{url}'>{author}</a></i>\n"
+                        f"<b><a href='{guid}'>{guid}</a></b>"
+                    )
                 media_group.append(InputMediaPhoto(media=image_data, caption=album_info, parse_mode="HTML"))
+                caption_added = True
             else:
                 media_group.append(InputMediaPhoto(media=image_data))
         except Exception as e:
@@ -75,6 +85,24 @@ async def send_images_to_telegram(title: str, images: list, url: str, guid: str,
         err_msg = f"No images to send for title '{title}'"
         logger.error(err_msg)
         return False, err_msg
+
+    # If for some reason no image got a caption (all initial ones were skipped),
+    # then attach a fallback caption to the first media in the group.
+    if not caption_added and media_group:
+        if title:
+            album_info = (
+                f"<i><a href='{url}'>{author}</a></i>\n"
+                f"<b><a href='{guid}'>{title}</a></b>"
+            )
+        else:
+            album_info = (
+                f"<i><a href='{url}'>{author}</a></i>\n"
+                f"<b><a href='{guid}'>{guid}</a></b>"
+            )
+        # Create a new media object with the caption and replace the first one.
+        first_media = media_group[0]
+        # Assuming InputMediaPhoto is mutable, set its caption:
+        first_media.caption = album_info
 
     # Pass the GUID to the retry function for logging/verification.
     messages = await send_media_group_with_retries(TELEGRAM_CHANNEL_ID, media_group, title, guid)
