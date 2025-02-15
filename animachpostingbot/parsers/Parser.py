@@ -96,8 +96,7 @@ class Parser:
                 logger.debug("Skipping entry with no valid GUID.")
                 continue
 
-            title = entry.get("title", "No title")
-            logger.debug(f"Processing entry: title='{title}', normalized GUID='{guid}'")
+            logger.debug(f"Processing entry: normalized GUID='{guid}'")
 
             if guid in processed_entries:
                 logger.info(f"Skipping duplicate entry for GUID: {guid}")
@@ -135,17 +134,16 @@ class Parser:
 
             description = entry.get("description", "")
             image_urls = self.extract_img_links(description)
-            author = entry.get("author", "")
 
             if not image_urls:
                 logger.warning(f"No images found in entry: {entry.get('link', 'no link')}")
                 continue
 
-            logger.debug(f"Found {len(image_urls)} images in entry '{title}'. Enqueuing batches...")
+            logger.debug(f"Found {len(image_urls)} images in entry '{guid}'. Enqueuing batches...")
             for batch in chunk_list(image_urls, 10):
-                await self.queue.put((title, batch, user_link, guid, author))
+                await self.queue.put((batch, user_link, guid))
                 logger.info(
-                    f"Enqueued batch: title='{title}', GUID='{guid}', batch size={len(batch)}; "
+                    f"Enqueued batch: GUID='{guid}', batch size={len(batch)}; "
                     f"queue size: {self.queue.qsize()}"
                 )
 

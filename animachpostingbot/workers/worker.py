@@ -32,8 +32,7 @@ async def check_duplicate_and_mark(db, guid: str, worker_id: int) -> bool:
         return False
 
 
-async def process_successful_post(worker_id: int, guid: str, title: str, image_urls: list,
-                                  user_link: str, author: str, messages, db) -> None:
+async def process_successful_post(worker_id: int, guid: str, messages, db) -> None:
     """
     Process a successful posting to Telegram by extracting message details,
     updating the database, and handling potential duplicate media groups.
@@ -96,13 +95,13 @@ async def worker(queue: asyncio.Queue, db, worker_id: int) -> None:
     Worker loop that processes queue items.
 
     Each queue item is a tuple:
-       (title, image_urls, user_link, guid, author)
+       (image_urls, guid)
     """
     global messages_posted_count
     while True:
-        title, image_urls, user_link, guid, author = await queue.get()
+        image_urls, user_link, guid = await queue.get()
         logger.info(
-            f"[Worker {worker_id}] Processing item: title='{title}', guid='{guid}', "
+            f"[Worker {worker_id}] Processing item: user_link='{user_link}', guid='{guid}', "
             f"number of images={len(image_urls)}"
         )
 
@@ -114,7 +113,7 @@ async def worker(queue: asyncio.Queue, db, worker_id: int) -> None:
 
         try:
             success, result = await send_images_to_telegram(
-                title, image_urls, user_link, guid, author
+                image_urls, user_link, guid
             )
             logger.debug(
                 f"[Worker {worker_id}] send_images_to_telegram returned: success={success}, result={result}"
@@ -129,8 +128,7 @@ async def worker(queue: asyncio.Queue, db, worker_id: int) -> None:
             # Expecting result to be a list of Telegram Message objects.
             messages = result
             if messages and hasattr(messages[0], "message_id"):
-                await process_successful_post(worker_id, guid, title, image_urls, user_link, author,
-                                              messages, db)
+                await process_successful_post(worker_id, guid, messages, db)
             else:
                 logger.info(
                     f"[Worker {worker_id}] Posting succeeded for guid '{guid}' "
